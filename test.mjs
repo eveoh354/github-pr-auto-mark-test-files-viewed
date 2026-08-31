@@ -101,6 +101,7 @@ const files = [unviewedTest, viewedTest, normalFile, similarName, legacyTest, hi
 const filterInput = new FilterInput();
 const traversalOnlyTest = new File('src/virtualized.test.ts', false);
 const scrollContainer = Object.assign(new Element(), {
+  lang: 'zh-CN',
   scrollTop: 123,
   clientHeight: 500,
   scrollHeight: 4000,
@@ -117,8 +118,14 @@ const virtualizedList = Object.assign(new Element(), {
 });
 
 const queuedTimers = [];
+const debugLogs = [];
 let mutationCallback;
 const context = {
+  console: {
+    info(...args) {
+      debugLogs.push(args);
+    },
+  },
   document: {
     body: {},
     documentElement: scrollContainer,
@@ -181,7 +188,15 @@ const context = {
 vm.runInNewContext(script, context);
 
 const debugSnapshot = context.window.__ghPrTestViewedDebug.snapshot();
-assert.equal(debugSnapshot.scriptVersion, '1.1.0', 'exposes the diagnostic version');
+assert.equal(debugSnapshot.scriptVersion, '1.1.1', 'exposes the diagnostic version');
+assert.equal(debugSnapshot.interfaceLanguage, 'zh-cn', 'uses GitHub interface language');
+scrollContainer.lang = 'unsupported-locale';
+assert.equal(
+  context.window.__ghPrTestViewedDebug.snapshot().interfaceLanguage,
+  'en',
+  'falls back to English for an unsupported GitHub language',
+);
+scrollContainer.lang = 'zh-CN';
 assert.equal(debugSnapshot.lastReport.routeMatched, true, 'reports a matching PR route');
 assert.equal(debugSnapshot.lastReport.testFileCount, 4, 'reports detected test files');
 
@@ -209,5 +224,10 @@ assert.equal(
 );
 assert.equal(scrollContainer.scrollTop, 123, 'restores the original scroll position');
 assert.deepEqual(filterInput.events, ['input', 'input'], 'notifies GitHub when filtering and restoring');
+assert.equal(
+  debugLogs.some((args) => args.some((value) => String(value).includes('处理完成：'))),
+  true,
+  'prints a human-readable completion summary',
+);
 
 console.log('auto-mark viewed behavior tests passed');

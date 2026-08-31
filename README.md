@@ -33,7 +33,7 @@ Confirm the installation, then refresh a pull request's **Files changed** page.
 
 ## Diagnostics
 
-Version 1.1.0 writes diagnostic messages beginning with
+Version 1.1.1 writes diagnostic messages beginning with
 `[GitHub PR test-files Viewed]` to the browser console. It does not make extra
 network requests or change which files the script clicks.
 
@@ -51,7 +51,7 @@ To copy a diagnostic snapshot:
 
 If the result is `undefined`, Tampermonkey did not inject this script into the
 current page; check that the script is enabled and that its installed version is
-1.1.0.
+1.1.1.
 
 ## Behavior
 
@@ -67,6 +67,12 @@ Given this file list:
 The script runs only on GitHub pull request Files changed pages. It supports both the current `/pull/<number>/changes` route and the classic `/pull/<number>/files` route.
 
 On GitHub's optimized large-PR view, off-screen files may not exist in the page until filtered and scrolled into view. When the file filter is empty, the script filters for `.test.ts`, automatically traverses the filtered virtual list, verifies the matching files, restores the empty filter, and returns to the original scroll position. It never replaces a filter you entered yourself.
+
+When traversal finishes, the browser console prints a summary with the number
+of matching test files, files newly marked Viewed, and files confirmed Viewed.
+The summary follows GitHub's `<html lang>` interface language for English,
+Simplified Chinese, Traditional Chinese, Japanese, Korean, French, German,
+Spanish, Portuguese, and Russian, with English as the fallback.
 
 ## Privacy and security
 

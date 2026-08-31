@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitHub PR - Auto Mark .test.ts Files as Viewed
 // @namespace    https://github.com/eveoh354/github-pr-auto-mark-test-files-viewed
-// @version      1.1.0
+// @version      1.1.1
 // @description  Automatically marks unviewed .test.ts files as Viewed on GitHub pull requests.
 // @author       eveoh354
 // @homepageURL  https://github.com/eveoh354/github-pr-auto-mark-test-files-viewed
@@ -35,6 +35,7 @@
   const pendingFiles = new WeakSet();
   const pendingPaths = new Map();
   const viewedTestPaths = new Set();
+  const clickedTestPaths = new Set();
   let scheduled = false;
   let activePage;
   let filterAttempted = false;
@@ -56,9 +57,10 @@
 
   const debugApi = {
     snapshot: () => ({
-      scriptVersion: '1.1.0',
+      scriptVersion: '1.1.1',
       url: location.href,
       userAgent: navigator.userAgent,
+      interfaceLanguage: getCompletionLocale(),
       lastReport,
       events: [...debugEvents],
     }),
@@ -122,6 +124,89 @@
         .filter(Boolean),
     );
 
+  const completionMessages = {
+    en: {
+      completed: ({ expected, newlyViewed, confirmed }) =>
+        `Completed: found ${expected} .test.ts files; newly marked Viewed ${newlyViewed}; confirmed Viewed ${confirmed}.`,
+      stopped: ({ passes, expected, newlyViewed, confirmed }) =>
+        `Stopped after ${passes} verification passes: found ${expected} .test.ts files; newly marked Viewed ${newlyViewed}; confirmed Viewed ${confirmed}.`,
+    },
+    'zh-cn': {
+      completed: ({ expected, newlyViewed, confirmed }) =>
+        `处理完成：共找到 ${expected} 个 .test.ts，本次新增 Viewed ${newlyViewed} 个，已确认 Viewed ${confirmed} 个。`,
+      stopped: ({ passes, expected, newlyViewed, confirmed }) =>
+        `处理停止：已完成 ${passes} 次校验；共找到 ${expected} 个 .test.ts，本次新增 Viewed ${newlyViewed} 个，已确认 Viewed ${confirmed} 个。`,
+    },
+    'zh-tw': {
+      completed: ({ expected, newlyViewed, confirmed }) =>
+        `處理完成：共找到 ${expected} 個 .test.ts，本次新增 Viewed ${newlyViewed} 個，已確認 Viewed ${confirmed} 個。`,
+      stopped: ({ passes, expected, newlyViewed, confirmed }) =>
+        `處理停止：已完成 ${passes} 次檢查；共找到 ${expected} 個 .test.ts，本次新增 Viewed ${newlyViewed} 個，已確認 Viewed ${confirmed} 個。`,
+    },
+    ja: {
+      completed: ({ expected, newlyViewed, confirmed }) =>
+        `処理完了：.test.ts ファイルを ${expected} 件検出し、${newlyViewed} 件を新たに Viewed に設定、${confirmed} 件を確認しました。`,
+      stopped: ({ passes, expected, newlyViewed, confirmed }) =>
+        `${passes} 回の確認後に停止：.test.ts ファイルを ${expected} 件検出し、${newlyViewed} 件を新たに Viewed に設定、${confirmed} 件を確認しました。`,
+    },
+    ko: {
+      completed: ({ expected, newlyViewed, confirmed }) =>
+        `처리 완료: .test.ts 파일 ${expected}개를 찾았고, ${newlyViewed}개를 새로 Viewed로 표시했으며, ${confirmed}개를 확인했습니다.`,
+      stopped: ({ passes, expected, newlyViewed, confirmed }) =>
+        `${passes}회 확인 후 중지: .test.ts 파일 ${expected}개를 찾았고, ${newlyViewed}개를 새로 Viewed로 표시했으며, ${confirmed}개를 확인했습니다.`,
+    },
+    fr: {
+      completed: ({ expected, newlyViewed, confirmed }) =>
+        `Terminé : ${expected} fichiers .test.ts trouvés, ${newlyViewed} nouvellement marqués Viewed, ${confirmed} confirmés Viewed.`,
+      stopped: ({ passes, expected, newlyViewed, confirmed }) =>
+        `Arrêt après ${passes} vérifications : ${expected} fichiers .test.ts trouvés, ${newlyViewed} nouvellement marqués Viewed, ${confirmed} confirmés Viewed.`,
+    },
+    de: {
+      completed: ({ expected, newlyViewed, confirmed }) =>
+        `Abgeschlossen: ${expected} .test.ts-Dateien gefunden, ${newlyViewed} neu als Viewed markiert, ${confirmed} als Viewed bestätigt.`,
+      stopped: ({ passes, expected, newlyViewed, confirmed }) =>
+        `Nach ${passes} Prüfungen beendet: ${expected} .test.ts-Dateien gefunden, ${newlyViewed} neu als Viewed markiert, ${confirmed} als Viewed bestätigt.`,
+    },
+    es: {
+      completed: ({ expected, newlyViewed, confirmed }) =>
+        `Completado: ${expected} archivos .test.ts encontrados, ${newlyViewed} marcados ahora como Viewed y ${confirmed} confirmados como Viewed.`,
+      stopped: ({ passes, expected, newlyViewed, confirmed }) =>
+        `Detenido tras ${passes} verificaciones: ${expected} archivos .test.ts encontrados, ${newlyViewed} marcados ahora como Viewed y ${confirmed} confirmados como Viewed.`,
+    },
+    pt: {
+      completed: ({ expected, newlyViewed, confirmed }) =>
+        `Concluído: ${expected} arquivos .test.ts encontrados, ${newlyViewed} marcados agora como Viewed e ${confirmed} confirmados como Viewed.`,
+      stopped: ({ passes, expected, newlyViewed, confirmed }) =>
+        `Interrompido após ${passes} verificações: ${expected} arquivos .test.ts encontrados, ${newlyViewed} marcados agora como Viewed e ${confirmed} confirmados como Viewed.`,
+    },
+    ru: {
+      completed: ({ expected, newlyViewed, confirmed }) =>
+        `Готово: найдено файлов .test.ts — ${expected}, впервые отмечено Viewed — ${newlyViewed}, подтверждено Viewed — ${confirmed}.`,
+      stopped: ({ passes, expected, newlyViewed, confirmed }) =>
+        `Остановлено после ${passes} проверок: найдено файлов .test.ts — ${expected}, впервые отмечено Viewed — ${newlyViewed}, подтверждено Viewed — ${confirmed}.`,
+    },
+  };
+
+  const getCompletionLocale = () => {
+    const locale = (document.documentElement.lang || navigator.language || 'en')
+      .replace('_', '-')
+      .toLowerCase();
+    if (locale.startsWith('zh')) {
+      return /(?:hant|tw|hk|mo)/u.test(locale) ? 'zh-tw' : 'zh-cn';
+    }
+
+    const language = locale.split('-')[0];
+    return completionMessages[language] ? language : 'en';
+  };
+
+  const formatCompletionMessage = (completed, values) => {
+    const locale = getCompletionLocale();
+    return {
+      locale,
+      text: completionMessages[locale][completed ? 'completed' : 'stopped'](values),
+    };
+  };
+
   const findScrollContainer = (element) => {
     for (let parent = element.parentElement; parent; parent = parent.parentElement) {
       const { overflowY } = getComputedStyle(parent);
@@ -155,11 +240,21 @@
     state.cancelled = true;
     traversal = undefined;
     const expectedPaths = getExpectedTestFilePaths();
-    recordDebugEvent('Automatic test-file traversal finished.', {
+    const confirmedExpected = [...expectedPaths].filter((path) => viewedTestPaths.has(path)).length;
+    const completed = reason === 'all-test-files-confirmed-viewed';
+    const completion = formatCompletionMessage(completed, {
+      passes: state.pass,
+      expected: expectedPaths.size,
+      newlyViewed: clickedTestPaths.size,
+      confirmed: confirmedExpected,
+    });
+    recordDebugEvent(completion.text, {
       reason,
+      locale: completion.locale,
       passes: state.pass,
       expectedTestFiles: expectedPaths.size,
-      confirmedViewed: viewedTestPaths.size,
+      newlyViewed: clickedTestPaths.size,
+      confirmedViewed: confirmedExpected,
     });
 
     if (state.filter.value === TEST_FILE_FILTER) {
@@ -335,6 +430,7 @@
         const pendingToken = Symbol(filePath);
         pendingFiles.add(file);
         pendingPaths.set(filePath, pendingToken);
+        clickedTestPaths.add(filePath);
         toggle.click();
 
         // GitHub updates the button asynchronously. Recheck after it settles so a
@@ -398,12 +494,13 @@
       filterAttempted = false;
       pendingPaths.clear();
       viewedTestPaths.clear();
+      clickedTestPaths.clear();
     }
 
     observer.disconnect();
     if (document.body) observer.observe(document.body, { childList: true, subtree: true });
     recordDebugEvent('Script started.', {
-      version: '1.1.0',
+      version: '1.1.1',
       page,
       routeMatched: isPullRequestFilesPage(),
     });

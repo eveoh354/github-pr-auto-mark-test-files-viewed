@@ -41,6 +41,18 @@ class Input extends Element {
   }
 }
 
+class FilterInput extends Input {
+  constructor() {
+    super(false);
+    this.value = '';
+    this.events = [];
+  }
+
+  dispatchEvent(event) {
+    this.events.push(event.type);
+  }
+}
+
 class Button extends Element {
   constructor(viewed) {
     super({ 'aria-pressed': String(viewed) });
@@ -80,22 +92,40 @@ const similarName = new File('src/example.test.tsx', false);
 const legacyTest = new File('src/legacy.test.ts', false, { legacy: true });
 const hiddenTest = new File('src/hidden.test.ts', false, { hidden: true });
 const files = [unviewedTest, viewedTest, normalFile, similarName, legacyTest, hiddenTest];
+const filterInput = new FilterInput();
 
 const queuedTimers = [];
+let mutationCallback;
 const context = {
   document: {
     body: {},
     addEventListener() {},
-    querySelectorAll() {
+    querySelector(selector) {
+      return selector.includes('Filter files') ? filterInput : null;
+    },
+    querySelectorAll(selector) {
+      assert.match(
+        selector,
+        /Diff-module__diffTargetable/,
+        'scans GitHub React file containers',
+      );
       return files;
     },
   },
   // GitHub's current Files changed experience uses /changes instead of /files.
-  location: { pathname: '/owner/repository/pull/1/changes' },
+  location: { pathname: '/owner/repository/pull/1/changes', search: '' },
   window: { addEventListener() {} },
   HTMLElement: Element,
   HTMLInputElement: Input,
+  Event: class {
+    constructor(type) {
+      this.type = type;
+    }
+  },
   MutationObserver: class {
+    constructor(callback) {
+      mutationCallback = callback;
+    }
     disconnect() {}
     observe() {}
   },
@@ -115,9 +145,17 @@ assert.equal(normalFile.toggle.clickCount, 0, 'does not touch a regular TypeScri
 assert.equal(similarName.toggle.clickCount, 0, 'does not treat .test.tsx as .test.ts');
 assert.equal(legacyTest.toggle.clickCount, 1, 'supports the legacy GitHub checkbox');
 assert.equal(hiddenTest.toggle.clickCount, 0, 'does not touch a filtered-out file');
+assert.equal(filterInput.value, '.test.ts', 'temporarily filters a virtualized large PR');
+
+const lazyLoadedTest = new File('src/lazy-loaded.test.ts', false);
+files.push(lazyLoadedTest);
+mutationCallback();
+assert.equal(lazyLoadedTest.toggle.clickCount, 1, 'marks a test file loaded later in a large PR');
 
 for (const callback of queuedTimers) callback();
 assert.equal(unviewedTest.toggle.clickCount, 1, 'does not toggle a viewed file back off');
 assert.equal(viewedTest.toggle.clickCount, 0, 'preserves pre-existing viewed state');
+assert.equal(filterInput.value, '', 'restores the original empty file filter');
+assert.deepEqual(filterInput.events, ['input', 'input'], 'notifies GitHub when filtering and restoring');
 
 console.log('auto-mark viewed behavior tests passed');

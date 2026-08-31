@@ -10,7 +10,9 @@ It never unchecks a file and never changes the review state of non-`.test.ts` fi
 - Skips `.test.ts` files already marked as Viewed
 - Leaves every other file and all existing Viewed states untouched
 - Supports GitHub's current `/changes` React view and the classic `/files` view
-- Handles dynamically loaded files in large pull requests
+- Handles GitHub's optimized large-PR file containers and dynamically loaded files
+- Temporarily filters `.test.ts` files on virtualized large PRs, then restores the empty filter
+- Preserves an existing file filter instead of replacing it
 - No dependencies, API tokens, tracking, or extra network requests
 
 ## Install
@@ -41,6 +43,8 @@ Given this file list:
 | `src/account.test.tsx` | Not viewed | Unchanged |
 
 The script runs only on GitHub pull request Files changed pages. It supports both the current `/pull/<number>/changes` route and the classic `/pull/<number>/files` route.
+
+On GitHub's optimized large-PR view, off-screen files may not exist in the page until filtered or scrolled into view. When the file filter is empty, the script briefly filters for `.test.ts`, marks the matching files, and restores the empty filter. It never replaces a filter you entered yourself.
 
 ## Privacy and security
 

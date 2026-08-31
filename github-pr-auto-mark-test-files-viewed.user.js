@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitHub PR - Auto Mark .test.ts Files as Viewed
 // @namespace    https://github.com/eveoh354/github-pr-auto-mark-test-files-viewed
-// @version      1.0.1
+// @version      1.0.2
 // @description  Automatically marks unviewed .test.ts files as Viewed on GitHub pull requests.
 // @author       eveoh354
 // @homepageURL  https://github.com/eveoh354/github-pr-auto-mark-test-files-viewed
@@ -18,11 +18,17 @@
 (() => {
   'use strict';
 
-  const FILE_SELECTOR = '[id^="diff-"], .js-file';
+  const FILE_SELECTOR =
+    '[class^="Diff-module__diffTargetable"], [id^="diff-"], .js-file';
   const VIEWED_TOGGLE_SELECTOR =
     'button[class*="MarkAsViewedButton"], input.js-reviewed-checkbox[name="viewed"]';
+  const FILTER_SELECTOR =
+    'input[placeholder="Filter files..."], input[aria-label*="Filter files" i]';
+  const TEST_FILE_FILTER = '.test.ts';
   const pendingFiles = new WeakSet();
   let scheduled = false;
+  let activePage;
+  let filterAttempted = false;
 
   const isPullRequestFilesPage = () =>
     /^\/[^/]+\/[^/]+\/pull\/\d+\/(?:files|changes)(?:\/|$)/.test(location.pathname);
@@ -50,6 +56,31 @@
   const isVisible = (element) =>
     element instanceof HTMLElement && !element.hidden && element.getClientRects().length > 0;
 
+  const setFilterValue = (input, value) => {
+    const nativeSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+    if (nativeSetter) nativeSetter.call(input, value);
+    else input.value = value;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  };
+
+  const temporarilyShowAllTestFiles = () => {
+    if (filterAttempted) return;
+
+    const filter = document.querySelector(FILTER_SELECTOR);
+    if (!(filter instanceof HTMLInputElement)) return;
+
+    filterAttempted = true;
+    if (filter.value) return;
+
+    setFilterValue(filter, TEST_FILE_FILTER);
+
+    // Large PRs virtualize files that are outside the viewport. Filtering makes
+    // every matching test file available to the observer without scrolling.
+    setTimeout(() => {
+      if (filter.value === TEST_FILE_FILTER) setFilterValue(filter, '');
+    }, 3500);
+  };
+
   const markTestFilesViewed = () => {
     scheduled = false;
     if (!isPullRequestFilesPage()) return;
@@ -73,6 +104,8 @@
         scheduleMarking();
       }, 1500);
     }
+
+    temporarilyShowAllTestFiles();
   };
 
   const scheduleMarking = () => {
@@ -84,6 +117,12 @@
   const observer = new MutationObserver(scheduleMarking);
 
   const start = () => {
+    const page = `${location.pathname}${location.search}`;
+    if (page !== activePage) {
+      activePage = page;
+      filterAttempted = false;
+    }
+
     observer.disconnect();
     if (document.body) observer.observe(document.body, { childList: true, subtree: true });
     scheduleMarking();

@@ -11,7 +11,7 @@ It never unchecks a file and never changes the review state of non-`.test.ts` fi
 - Leaves every other file and all existing Viewed states untouched
 - Supports GitHub's current `/changes` React view and the classic `/files` view
 - Handles GitHub's optimized large-PR file containers and dynamically loaded files
-- Temporarily filters `.test.ts` files on virtualized large PRs, then restores the empty filter
+- Temporarily filters `.test.ts`, automatically traverses the virtualized file list, then restores the empty filter and scroll position
 - Preserves an existing file filter instead of replacing it
 - No dependencies, API tokens, tracking, or extra network requests
 
@@ -33,7 +33,7 @@ Confirm the installation, then refresh a pull request's **Files changed** page.
 
 ## Diagnostics
 
-Version 1.0.4 writes diagnostic messages beginning with
+Version 1.1.0 writes diagnostic messages beginning with
 `[GitHub PR test-files Viewed]` to the browser console. It does not make extra
 network requests or change which files the script clicks.
 
@@ -51,7 +51,7 @@ To copy a diagnostic snapshot:
 
 If the result is `undefined`, Tampermonkey did not inject this script into the
 current page; check that the script is enabled and that its installed version is
-1.0.4.
+1.1.0.
 
 ## Behavior
 
@@ -66,7 +66,7 @@ Given this file list:
 
 The script runs only on GitHub pull request Files changed pages. It supports both the current `/pull/<number>/changes` route and the classic `/pull/<number>/files` route.
 
-On GitHub's optimized large-PR view, off-screen files may not exist in the page until filtered or scrolled into view. When the file filter is empty, the script briefly filters for `.test.ts`, marks the matching files, and restores the empty filter. It never replaces a filter you entered yourself.
+On GitHub's optimized large-PR view, off-screen files may not exist in the page until filtered and scrolled into view. When the file filter is empty, the script filters for `.test.ts`, automatically traverses the filtered virtual list, verifies the matching files, restores the empty filter, and returns to the original scroll position. It never replaces a filter you entered yourself.
 
 ## Privacy and security
 

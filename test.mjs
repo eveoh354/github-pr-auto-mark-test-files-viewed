@@ -99,17 +99,42 @@ const legacyTest = new File('src/legacy.test.ts', false, { legacy: true });
 const hiddenTest = new File('src/hidden.test.ts', false, { hidden: true });
 const files = [unviewedTest, viewedTest, normalFile, similarName, legacyTest, hiddenTest];
 const filterInput = new FilterInput();
+const traversalOnlyTest = new File('src/virtualized.test.ts', false);
+const scrollContainer = Object.assign(new Element(), {
+  scrollTop: 123,
+  clientHeight: 500,
+  scrollHeight: 4000,
+});
+const virtualizedList = Object.assign(new Element(), {
+  scrollHeight: 2000,
+  parentElement: null,
+  getBoundingClientRect() {
+    return {
+      top: 1000 - scrollContainer.scrollTop,
+      bottom: 3000 - scrollContainer.scrollTop,
+    };
+  },
+});
 
 const queuedTimers = [];
 let mutationCallback;
 const context = {
   document: {
     body: {},
+    documentElement: scrollContainer,
+    scrollingElement: scrollContainer,
     addEventListener() {},
     querySelector(selector) {
-      return selector.includes('Filter files') ? filterInput : null;
+      if (selector.includes('Filter files')) return filterInput;
+      if (selector === '[data-testid="virtualized-diffs-list"]') return virtualizedList;
+      return null;
     },
     querySelectorAll(selector) {
+      if (selector.includes('[role="treeitem"]')) {
+        return [unviewedTest, viewedTest, legacyTest, lazyLoadedTest, traversalOnlyTest].map(
+          (file) => Object.assign(new Element(), { id: file.path }),
+        );
+      }
       assert.match(
         selector,
         /Diff-module__diffTargetable/,
@@ -120,7 +145,7 @@ const context = {
         /(?:^|,\s*)\[id\^="diff-"\](?:,|$)/,
         'does not treat every diff-prefixed descendant as a file container',
       );
-      return files;
+      return scrollContainer.scrollTop >= 1500 ? [...files, traversalOnlyTest] : files;
     },
   },
   // GitHub's current Files changed experience uses /changes instead of /files.
@@ -130,7 +155,7 @@ const context = {
     search: '',
   },
   navigator: { userAgent: 'userscript-test' },
-  window: { addEventListener() {} },
+  window: { addEventListener() {}, innerHeight: 500 },
   HTMLElement: Element,
   HTMLInputElement: Input,
   Event: class {
@@ -156,7 +181,7 @@ const context = {
 vm.runInNewContext(script, context);
 
 const debugSnapshot = context.window.__ghPrTestViewedDebug.snapshot();
-assert.equal(debugSnapshot.scriptVersion, '1.0.4', 'exposes the diagnostic version');
+assert.equal(debugSnapshot.scriptVersion, '1.1.0', 'exposes the diagnostic version');
 assert.equal(debugSnapshot.lastReport.routeMatched, true, 'reports a matching PR route');
 assert.equal(debugSnapshot.lastReport.testFileCount, 4, 'reports detected test files');
 
@@ -177,6 +202,12 @@ for (const callback of queuedTimers) callback();
 assert.equal(unviewedTest.toggle.clickCount, 1, 'does not toggle a viewed file back off');
 assert.equal(viewedTest.toggle.clickCount, 0, 'preserves pre-existing viewed state');
 assert.equal(filterInput.value, '', 'restores the original empty file filter');
+assert.equal(
+  traversalOnlyTest.toggle.clickCount,
+  1,
+  'marks a test file that appears only after automatic scrolling',
+);
+assert.equal(scrollContainer.scrollTop, 123, 'restores the original scroll position');
 assert.deepEqual(filterInput.events, ['input', 'input'], 'notifies GitHub when filtering and restoring');
 
 console.log('auto-mark viewed behavior tests passed');

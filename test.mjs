@@ -113,7 +113,12 @@ const context = {
     },
   },
   // GitHub's current Files changed experience uses /changes instead of /files.
-  location: { pathname: '/owner/repository/pull/1/changes', search: '' },
+  location: {
+    href: 'https://github.com/owner/repository/pull/1/changes',
+    pathname: '/owner/repository/pull/1/changes',
+    search: '',
+  },
+  navigator: { userAgent: 'userscript-test' },
   window: { addEventListener() {} },
   HTMLElement: Element,
   HTMLInputElement: Input,
@@ -138,6 +143,11 @@ const context = {
 };
 
 vm.runInNewContext(script, context);
+
+const debugSnapshot = context.window.__ghPrTestViewedDebug.snapshot();
+assert.equal(debugSnapshot.scriptVersion, '1.0.3', 'exposes the diagnostic version');
+assert.equal(debugSnapshot.lastReport.routeMatched, true, 'reports a matching PR route');
+assert.equal(debugSnapshot.lastReport.testFileCount, 4, 'reports detected test files');
 
 assert.equal(unviewedTest.toggle.clickCount, 1, 'marks an unviewed .test.ts file');
 assert.equal(viewedTest.toggle.clickCount, 0, 'does not touch an already viewed test file');

@@ -31,6 +31,28 @@ It never unchecks a file and never changes the review state of non-`.test.ts` fi
 
 Confirm the installation, then refresh a pull request's **Files changed** page.
 
+## Diagnostics
+
+Version 1.0.3 writes diagnostic messages beginning with
+`[GitHub PR test-files Viewed]` to the browser console. It does not make extra
+network requests or change which files the script clicks.
+
+To copy a diagnostic snapshot:
+
+1. Open the pull request's **Files changed** page and refresh it.
+2. Open Chrome DevTools with <kbd>⌥</kbd>+<kbd>⌘</kbd>+<kbd>I</kbd> and select **Console**.
+3. Run:
+
+   ```js
+   copy(JSON.stringify(window.__ghPrTestViewedDebug?.snapshot(), null, 2))
+   ```
+
+4. Paste the copied output into the issue or conversation.
+
+If the result is `undefined`, Tampermonkey did not inject this script into the
+current page; check that the script is enabled and that its installed version is
+1.0.3.
+
 ## Behavior
 
 Given this file list:

@@ -90,7 +90,8 @@ const context = {
       return files;
     },
   },
-  location: { pathname: '/owner/repository/pull/1/files' },
+  // GitHub's current Files changed experience uses /changes instead of /files.
+  location: { pathname: '/owner/repository/pull/1/changes' },
   window: { addEventListener() {} },
   HTMLElement: Element,
   HTMLInputElement: Input,

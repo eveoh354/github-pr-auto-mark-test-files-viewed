@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitHub PR - Auto Mark .test.ts Files as Viewed
 // @namespace    https://github.com/eveoh354/github-pr-auto-mark-test-files-viewed
-// @version      1.0.0
+// @version      1.0.1
 // @description  Automatically marks unviewed .test.ts files as Viewed on GitHub pull requests.
 // @author       eveoh354
 // @homepageURL  https://github.com/eveoh354/github-pr-auto-mark-test-files-viewed
@@ -9,6 +9,7 @@
 // @downloadURL  https://raw.githubusercontent.com/eveoh354/github-pr-auto-mark-test-files-viewed/main/github-pr-auto-mark-test-files-viewed.user.js
 // @updateURL    https://raw.githubusercontent.com/eveoh354/github-pr-auto-mark-test-files-viewed/main/github-pr-auto-mark-test-files-viewed.user.js
 // @match        https://github.com/*/*/pull/*/files*
+// @match        https://github.com/*/*/pull/*/changes*
 // @run-at       document-idle
 // @grant        none
 // @license      MIT
@@ -24,7 +25,7 @@
   let scheduled = false;
 
   const isPullRequestFilesPage = () =>
-    /^\/[^/]+\/[^/]+\/pull\/\d+\/files(?:\/|$)/.test(location.pathname);
+    /^\/[^/]+\/[^/]+\/pull\/\d+\/(?:files|changes)(?:\/|$)/.test(location.pathname);
 
   const getFilePath = (file) => {
     const pathFromData =

@@ -9,7 +9,7 @@ It never unchecks a file and never changes the review state of non-`.test.ts` fi
 - Marks only file paths ending exactly in `.test.ts`
 - Skips `.test.ts` files already marked as Viewed
 - Leaves every other file and all existing Viewed states untouched
-- Supports GitHub's current React Files changed view and the classic view
+- Supports GitHub's current `/changes` React view and the classic `/files` view
 - Handles dynamically loaded files in large pull requests
 - No dependencies, API tokens, tracking, or extra network requests
 
@@ -40,7 +40,7 @@ Given this file list:
 | `src/account.ts` | Not viewed | Unchanged |
 | `src/account.test.tsx` | Not viewed | Unchanged |
 
-The script runs only on URLs matching GitHub pull request Files changed pages.
+The script runs only on GitHub pull request Files changed pages. It supports both the current `/pull/<number>/changes` route and the classic `/pull/<number>/files` route.
 
 ## Privacy and security
 

@@ -13,6 +13,8 @@ class Element {
     this.hidden = false;
     this.disabled = false;
     this.textContent = '';
+    this.tagName = 'DIV';
+    this.id = '';
   }
 
   getAttribute(name) {
@@ -66,20 +68,24 @@ class Button extends Element {
 }
 
 class File extends Element {
-  constructor(path, viewed, { legacy = false, hidden = false } = {}) {
+  constructor(path, viewed, { legacy = false, hidden = false, react = true } = {}) {
     super({
       ...(legacy ? { 'data-file-path': path } : {}),
       ...(hidden ? { hidden: '' } : {}),
     });
     this.path = path;
+    this.react = react;
     this.toggle = legacy ? new Input(viewed) : new Button(viewed);
+    this.id = `diff-${path}`;
   }
 
   querySelector(selector) {
-    if (selector.includes('MarkAsViewedButton')) return this.toggle;
+    if (selector.includes('aria-label="Viewed"')) return this.toggle;
     if (selector === '[data-file-path]' || selector === '[data-path]') return null;
-    if (selector === 'a[href^="#diff-"]') {
-      return Object.assign(new Element(), { textContent: this.path });
+    if (selector.includes('h3 code') || selector.includes('a[href^="#diff-"]')) {
+      return Object.assign(new Element(), {
+        textContent: this.react ? `\u200e${this.path}\u200e` : this.path,
+      });
     }
     return null;
   }
@@ -108,6 +114,11 @@ const context = {
         selector,
         /Diff-module__diffTargetable/,
         'scans GitHub React file containers',
+      );
+      assert.doesNotMatch(
+        selector,
+        /(?:^|,\s*)\[id\^="diff-"\](?:,|$)/,
+        'does not treat every diff-prefixed descendant as a file container',
       );
       return files;
     },
@@ -145,7 +156,7 @@ const context = {
 vm.runInNewContext(script, context);
 
 const debugSnapshot = context.window.__ghPrTestViewedDebug.snapshot();
-assert.equal(debugSnapshot.scriptVersion, '1.0.3', 'exposes the diagnostic version');
+assert.equal(debugSnapshot.scriptVersion, '1.0.4', 'exposes the diagnostic version');
 assert.equal(debugSnapshot.lastReport.routeMatched, true, 'reports a matching PR route');
 assert.equal(debugSnapshot.lastReport.testFileCount, 4, 'reports detected test files');
 

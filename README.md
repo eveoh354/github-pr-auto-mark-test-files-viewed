@@ -33,7 +33,7 @@ Confirm the installation, then refresh a pull request's **Files changed** page.
 
 ## Diagnostics
 
-Version 1.0.3 writes diagnostic messages beginning with
+Version 1.0.4 writes diagnostic messages beginning with
 `[GitHub PR test-files Viewed]` to the browser console. It does not make extra
 network requests or change which files the script clicks.
 
@@ -51,7 +51,7 @@ To copy a diagnostic snapshot:
 
 If the result is `undefined`, Tampermonkey did not inject this script into the
 current page; check that the script is enabled and that its installed version is
-1.0.3.
+1.0.4.
 
 ## Behavior
 

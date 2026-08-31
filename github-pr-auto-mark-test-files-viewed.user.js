@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitHub PR - Auto Mark .test.ts Files as Viewed
 // @namespace    https://github.com/eveoh354/github-pr-auto-mark-test-files-viewed
-// @version      1.0.3
+// @version      1.0.4
 // @description  Automatically marks unviewed .test.ts files as Viewed on GitHub pull requests.
 // @author       eveoh354
 // @homepageURL  https://github.com/eveoh354/github-pr-auto-mark-test-files-viewed
@@ -19,8 +19,10 @@
   'use strict';
 
   const FILE_SELECTOR =
-    '[class^="Diff-module__diffTargetable"], [id^="diff-"], .js-file';
+    '[data-testid="virtualized-diffs-list"] [role="region"][id^="diff-"], ' +
+    '[role="region"][id^="diff-"][class*="Diff-module__diffTargetable"], .js-file';
   const VIEWED_TOGGLE_SELECTOR =
+    'button[aria-label="Viewed"], button[aria-label="Not Viewed"], ' +
     'button[class*="MarkAsViewedButton"], input.js-reviewed-checkbox[name="viewed"]';
   const FILTER_SELECTOR =
     'input[placeholder="Filter files..."], input[aria-label*="Filter files" i]';
@@ -48,7 +50,7 @@
 
   const debugApi = {
     snapshot: () => ({
-      scriptVersion: '1.0.3',
+      scriptVersion: '1.0.4',
       url: location.href,
       userAgent: navigator.userAgent,
       lastReport,
@@ -69,15 +71,23 @@
   const isPullRequestFilesPage = () =>
     /^\/[^/]+\/[^/]+\/pull\/\d+\/(?:files|changes)(?:\/|$)/.test(location.pathname);
 
+  const normalizeFilePath = (path) =>
+    path?.replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069]/gu, '').trim();
+
   const getFilePath = (file) => {
     const pathFromData =
       file.getAttribute('data-file-path') ??
       file.querySelector('[data-file-path]')?.getAttribute('data-file-path') ??
       file.querySelector('[data-path]')?.getAttribute('data-path');
-    if (pathFromData) return pathFromData.trim();
+    if (pathFromData) return normalizeFilePath(pathFromData);
 
-    // GitHub's current React Files changed view puts the full path in this link.
-    return file.querySelector('a[href^="#diff-"]')?.textContent?.trim();
+    // GitHub's React view wraps the full path in h3 > a > code and surrounds
+    // it with invisible bidirectional formatting characters.
+    const pathFromHeader = file.querySelector(
+      '[data-diff-header-wrapper] h3 code, h3 a[href^="#diff-"] code, ' +
+        'a[href^="#diff-"] code, a[href^="#diff-"]',
+    )?.textContent;
+    return normalizeFilePath(pathFromHeader);
   };
 
   const isViewed = (toggle) => {
@@ -152,6 +162,8 @@
       const toggle = file.querySelector(VIEWED_TOGGLE_SELECTOR);
       const state = {
         filePath: filePath ?? null,
+        containerTag: file.tagName,
+        containerId: file.id || null,
         isTestFile,
         hidden: file.hasAttribute('hidden'),
         toggleFound: Boolean(toggle),
@@ -230,7 +242,7 @@
     observer.disconnect();
     if (document.body) observer.observe(document.body, { childList: true, subtree: true });
     recordDebugEvent('Script started.', {
-      version: '1.0.3',
+      version: '1.0.4',
       page,
       routeMatched: isPullRequestFilesPage(),
     });
